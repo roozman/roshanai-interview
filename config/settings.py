@@ -96,6 +96,9 @@ DATABASES = {
         "HOST": os.getenv("POSTGRES_HOST", "localhost"),
         "PORT": os.getenv("POSTGRES_PORT", "5432"),
         "CONN_HEALTH_CHECKS": True,
+        "OPTIONS": {
+            "connect_timeout": 3,
+        },
     }
 }
 
