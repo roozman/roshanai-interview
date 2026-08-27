@@ -146,3 +146,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+DOCUMENT_MAX_UPLOAD_SIZE_BYTES = int(
+    os.getenv(
+        "DOCUMENT_MAX_UPLOAD_SIZE_BYTES",
+        10 * 1024 * 1024,
+    )
+)
+
+DOCUMENT_MAX_UNCOMPRESSED_SIZE_BYTES = int(
+    os.getenv(
+        "DOCUMENT_MAX_UNCOMPRESSED_SIZE_BYTES",
+        50 * 1024 * 1024,
+    )
+)

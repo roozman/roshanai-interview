@@ -1,5 +1,6 @@
 from django.db import models
 
+from documents.validators import validate_docx_file
 
 class Document(models.Model):
     class Status(models.TextChoices):
@@ -9,7 +10,10 @@ class Document(models.Model):
         FAILED = "failed", "Failed"
 
     title = models.CharField(max_length=255)
-    file = models.FileField(upload_to="documents/%Y/%m/%d/")
+    file = models.FileField(
+        upload_to="documents/%Y/%m/%d/",
+        validators=[validate_docx_file],
+    )    
     full_text = models.TextField(blank=True)
 
     status = models.CharField(
