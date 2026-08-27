@@ -160,3 +160,19 @@ DOCUMENT_MAX_UNCOMPRESSED_SIZE_BYTES = int(
         50 * 1024 * 1024,
     )
 )
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+    "DEFAULT_PAGINATION_CLASS": (
+        "config.api.pagination.StandardResultsSetPagination"
+    ),
+    "EXCEPTION_HANDLER": (
+        "config.api.exceptions.api_exception_handler"
+    ),
+}
