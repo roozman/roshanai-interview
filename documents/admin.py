@@ -1,10 +1,25 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 
 from documents.models import Document
-
+from documents.services.ingestion import process_document
 
 @admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):
+    def save_model(self, request, obj, form, change):
+        file_changed = "file" in form.changed_data
+
+        super().save_model(request, obj, form, change)
+
+        if not change or file_changed:
+            processed_document = process_document(obj.pk)
+            obj.refresh_from_db()
+
+            if processed_document.status == Document.Status.FAILED:
+                self.message_user(
+                    request,
+                    processed_document.error_message,
+                    level=messages.ERROR,
+                )
     list_display = (
         "id",
         "title",
