@@ -1,6 +1,8 @@
 from django.db import models
-
 from documents.validators import validate_docx_file
+from pgvector.django import HalfVectorField, HnswIndex
+from documents.constants import EMBEDDING_DIMENSION
+
 
 class Document(models.Model):
     class Status(models.TextChoices):
@@ -37,3 +39,56 @@ class Document(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+class DocumentChunk(models.Model):
+    document = models.ForeignKey(
+        Document,
+        on_delete=models.CASCADE,
+        related_name="chunks",
+    )
+    content = models.TextField()
+    chunk_index = models.PositiveIntegerField()
+    start_offset = models.PositiveIntegerField()
+    end_offset = models.PositiveIntegerField()
+    token_count = models.PositiveIntegerField()
+    embedding = HalfVectorField(
+        dimensions=EMBEDDING_DIMENSION,
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["document_id", "chunk_index"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["document", "chunk_index"],
+                name="unique_document_chunk_index",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(content=""),
+                name="chunk_content_not_empty",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(
+                    end_offset__gt=models.F("start_offset"),
+                ),
+                name="chunk_offsets_valid",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(token_count__gt=0),
+                name="chunk_token_count_positive",
+            ),
+        ]
+        indexes = [
+            HnswIndex(
+                name="chunk_embedding_hnsw",
+                fields=["embedding"],
+                m=16,
+                ef_construction=64,
+                opclasses=["halfvec_cosine_ops"],
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.document.title} — chunk {self.chunk_index}"

@@ -1,0 +1,2 @@
+DEFAULT_EMBEDDING_MODEL = "nvidia/nemotron-3-embed-1b:free"
+EMBEDDING_DIMENSION = 2048
