@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
+
 from documents.constants import DEFAULT_EMBEDDING_MODEL
 from qa.constants import DEFAULT_CHAT_MODEL
 
@@ -22,12 +25,29 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-SECRET_KEY = os.getenv(
-    "DJANGO_SECRET_KEY",
-    "unsafe-development-key",
+DEBUG = (
+    os.getenv("DJANGO_DEBUG", "False").lower()
+    == "true"
 )
 
-DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
+SECRET_KEY = os.getenv(
+    "DJANGO_SECRET_KEY",
+    "",
+).strip()
+
+if not SECRET_KEY:
+    raise ImproperlyConfigured(
+        "DJANGO_SECRET_KEY must be configured."
+    )
+
+if (
+    not DEBUG
+    and SECRET_KEY == "replace-with-a-secret-key"
+):
+    raise ImproperlyConfigured(
+        "DJANGO_SECRET_KEY must be changed "
+        "for production."
+    )
 
 ALLOWED_HOSTS = [
     host.strip()
