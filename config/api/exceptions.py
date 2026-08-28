@@ -1,5 +1,13 @@
-from rest_framework.views import exception_handler as drf_exception_handler
+import logging
 
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import (
+    exception_handler as drf_exception_handler,
+)
+
+
+logger = logging.getLogger(__name__)
 
 STATUS_CODE_TO_ERROR_CODE = {
     400: "bad_request",
@@ -16,7 +24,23 @@ def api_exception_handler(exc, context):
     response = drf_exception_handler(exc, context)
 
     if response is None:
-        return None
+        logger.exception(
+            "Unhandled API exception.",
+            exc_info=exc,
+        )
+
+        return Response(
+            {
+                "error": {
+                    "code": "internal_server_error",
+                    "message": (
+                        "An unexpected error occurred."
+                    ),
+                    "details": None,
+                }
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
     original_data = response.data
 
