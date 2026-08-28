@@ -35,6 +35,15 @@ class RetrievalInputError(RetrievalError):
     pass
 
 
+CANDIDATE_POOL_MULTIPLIER = 3
+
+
+def _normalize_content(content: str) -> str:
+    return " ".join(
+        content.split()
+    ).casefold()
+
+
 def _get_retrieval_configuration() -> tuple[int, float]:
     top_k = settings.RETRIEVAL_TOP_K
     score_threshold = settings.RETRIEVAL_SCORE_THRESHOLD
@@ -143,15 +152,19 @@ def retrieve_relevant_chunks(
             document_id__in=normalized_document_ids
         )
 
+    candidate_count = (
+        top_k * CANDIDATE_POOL_MULTIPLIER
+    )
     nearest_chunks = (
         queryset.annotate(
             retrieval_distance=distance_expression,
         )
-        .order_by("retrieval_distance")[:top_k]
+        .order_by("retrieval_distance")[:candidate_count]
     )
 
     results: list[RetrievedDocumentChunk] = []
 
+    seen_contents: set[str] = set()
     for chunk in nearest_chunks:
         distance = float(chunk.retrieval_distance)
 
@@ -169,6 +182,15 @@ def retrieve_relevant_chunks(
         if similarity_score < score_threshold:
             continue
 
+        content_key = _normalize_content(
+            chunk.content
+        )
+
+        if content_key in seen_contents:
+            continue
+
+        seen_contents.add(content_key)
+
         results.append(
             RetrievedDocumentChunk(
                 chunk_id=chunk.pk,
@@ -179,5 +201,8 @@ def retrieve_relevant_chunks(
                 similarity_score=similarity_score,
             )
         )
+
+        if len(results) >= top_k:
+            break
 
     return results
