@@ -75,6 +75,29 @@ class DocumentAdmin(admin.ModelAdmin):
         ),
     )
 
+    def get_deleted_objects(self, objs, request):
+        (
+            deleted_objects,
+            model_count,
+            perms_needed,
+            protected,
+        ) = super().get_deleted_objects(
+            objs,
+            request,
+        )
+
+        perms_needed.discard(
+            DocumentChunk._meta.verbose_name
+        )
+
+        return (
+            deleted_objects,
+            model_count,
+            perms_needed,
+            protected,
+        )
+
+
 @admin.register(DocumentChunk)
 class DocumentChunkAdmin(admin.ModelAdmin):
     list_display = (
