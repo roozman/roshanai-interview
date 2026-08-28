@@ -296,3 +296,39 @@ class DocumentRetrievalTests(TestCase):
             retrieve_relevant_chunks(
                 "Test question"
             )
+
+    @override_settings(
+        RETRIEVAL_TOP_K=2,
+        RETRIEVAL_SCORE_THRESHOLD=0.0,
+    )
+    def test_removes_duplicate_content_and_backfills(
+        self,
+    ):
+        self.create_chunk(
+            title="First duplicate",
+            content="Repeated content",
+            embedding=make_embedding(1.0, 0.0),
+        )
+        self.create_chunk(
+            title="Second duplicate",
+            content="  repeated   CONTENT  ",
+            embedding=make_embedding(4.0, 1.0),
+        )
+        self.create_chunk(
+            title="Unique result",
+            content="Unique content",
+            embedding=make_embedding(3.0, 2.0),
+        )
+
+        results = retrieve_relevant_chunks(
+            "Test question"
+        )
+
+        self.assertEqual(len(results), 2)
+        self.assertEqual(
+            [result.content for result in results],
+            [
+                "Repeated content",
+                "Unique content",
+            ],
+        )
