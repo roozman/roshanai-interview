@@ -1,23 +1,19 @@
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from documents.models import Document
-from documents.tests.helpers import (
-    DOCX_CONTENT_TYPE,
-    TemporaryMediaRootMixin,
-    make_uploaded_docx,
-)
-
-from unittest.mock import patch
+from documents.models import Document, DocumentChunk
 from documents.tests.helpers import (
     DOCX_CONTENT_TYPE,
     TemporaryMediaRootMixin,
     build_test_embeddings,
     make_uploaded_docx,
 )
+from documents.services.embeddings import EmbeddingServiceError
 
 
 class DocumentAPITests(
@@ -37,7 +33,9 @@ class DocumentAPITests(
             "generate_document_embeddings",
             side_effect=build_test_embeddings,
         )
-        self.embedding_patcher.start()
+        self.mock_generate_embeddings = (
+            self.embedding_patcher.start()
+        )
         self.addCleanup(self.embedding_patcher.stop)
 
     def upload_document(
@@ -188,6 +186,8 @@ class DocumentAPITests(
             args=[document_id],
         )
 
+        self.mock_generate_embeddings.reset_mock()
+
         response = self.client.patch(
             detail_url,
             {"title": "Updated title"},
@@ -207,6 +207,7 @@ class DocumentAPITests(
             document.full_text,
             "Original content",
         )
+        self.mock_generate_embeddings.assert_not_called()
 
     def test_reprocesses_document_when_file_changes(self):
         create_response = self.upload_document(
@@ -214,7 +215,15 @@ class DocumentAPITests(
         )
         document_id = create_response.data["id"]
         document = Document.objects.get(pk=document_id)
+
         original_checksum = document.checksum
+        original_chunk_ids = set(
+            document.chunks.values_list("id", flat=True)
+        )
+
+        self.assertTrue(original_chunk_ids)
+
+        self.mock_generate_embeddings.reset_mock()
 
         detail_url = reverse(
             "document-detail",
@@ -238,7 +247,17 @@ class DocumentAPITests(
         )
 
         document.refresh_from_db()
+        replacement_chunks = list(
+            document.chunks.order_by("chunk_index")
+        )
+        replacement_chunk_ids = {
+            chunk.pk for chunk in replacement_chunks
+        }
 
+        self.assertEqual(
+            document.status,
+            Document.Status.INDEXED,
+        )
         self.assertEqual(
             document.full_text,
             "Replacement content",
@@ -247,10 +266,99 @@ class DocumentAPITests(
             document.checksum,
             original_checksum,
         )
+        self.assertEqual(document.error_message, "")
+
+        self.assertTrue(replacement_chunks)
+        self.assertTrue(
+            original_chunk_ids.isdisjoint(
+                replacement_chunk_ids
+            )
+        )
+        self.assertFalse(
+            DocumentChunk.objects.filter(
+                pk__in=original_chunk_ids
+            ).exists()
+        )
+        self.assertTrue(
+            all(
+                chunk.embedding is not None
+                for chunk in replacement_chunks
+            )
+        )
+
+        self.mock_generate_embeddings.assert_called_once_with(
+            ["Replacement content"]
+        )
+
+    def test_removes_stale_chunks_when_reindex_fails(self):
+        create_response = self.upload_document(
+            text="Original indexed content",
+        )
+        document_id = create_response.data["id"]
+        document = Document.objects.get(pk=document_id)
+
+        original_chunk_ids = set(
+            document.chunks.values_list("id", flat=True)
+        )
+
+        self.assertTrue(original_chunk_ids)
+
+        self.mock_generate_embeddings.side_effect = (
+            EmbeddingServiceError(
+                "OpenRouter is unavailable."
+            )
+        )
+
+        detail_url = reverse(
+            "document-detail",
+            args=[document_id],
+        )
+
+        response = self.client.patch(
+            detail_url,
+            {
+                "file": make_uploaded_docx(
+                    name="failed-replacement.docx",
+                    paragraphs=("New content",),
+                )
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        document.refresh_from_db()
+
+        self.assertEqual(
+            document.status,
+            Document.Status.FAILED,
+        )
+        self.assertEqual(document.full_text, "")
+        self.assertIn(
+            "embeddings could not be generated",
+            document.error_message,
+        )
+        self.assertFalse(document.chunks.exists())
+        self.assertFalse(
+            DocumentChunk.objects.filter(
+                pk__in=original_chunk_ids
+            ).exists()
+        )
 
     def test_deletes_document(self):
         create_response = self.upload_document()
         document_id = create_response.data["id"]
+
+        chunk_ids = list(
+            DocumentChunk.objects.filter(
+                document_id=document_id
+            ).values_list("id", flat=True)
+        )
+
+        self.assertTrue(chunk_ids)
 
         detail_url = reverse(
             "document-detail",
@@ -265,6 +373,11 @@ class DocumentAPITests(
         )
         self.assertFalse(
             Document.objects.filter(pk=document_id).exists()
+        )
+        self.assertFalse(
+            DocumentChunk.objects.filter(
+                pk__in=chunk_ids
+            ).exists()
         )
 
     def test_requires_authentication(self):
