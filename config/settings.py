@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 from documents.constants import DEFAULT_EMBEDDING_MODEL
+from qa.constants import DEFAULT_CHAT_MODEL
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -226,5 +227,45 @@ RETRIEVAL_SCORE_THRESHOLD = float(
     os.getenv(
         "RETRIEVAL_SCORE_THRESHOLD",
         "0.35",
+    )
+)
+
+OPENROUTER_CHAT_MODEL = os.getenv(
+    "OPENROUTER_CHAT_MODEL",
+    DEFAULT_CHAT_MODEL,
+)
+
+OPENROUTER_CHAT_TEMPERATURE = float(
+    os.getenv(
+        "OPENROUTER_CHAT_TEMPERATURE",
+        "0",
+    )
+)
+
+OPENROUTER_CHAT_MAX_TOKENS = int(
+    os.getenv(
+        "OPENROUTER_CHAT_MAX_TOKENS",
+        "800",
+    )
+)
+
+OPENROUTER_CHAT_TIMEOUT_MS = int(
+    os.getenv(
+        "OPENROUTER_CHAT_TIMEOUT_MS",
+        "60000",
+    )
+)
+
+OPENROUTER_CHAT_MAX_RETRIES = int(
+    os.getenv(
+        "OPENROUTER_CHAT_MAX_RETRIES",
+        "0",
+    )
+)
+
+RAG_MAX_CONTEXT_CHARACTERS = int(
+    os.getenv(
+        "RAG_MAX_CONTEXT_CHARACTERS",
+        "12000",
     )
 )
