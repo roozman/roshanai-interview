@@ -214,3 +214,17 @@ OPENROUTER_TIMEOUT_SECONDS = float(
         "60",
     )
 )
+
+RETRIEVAL_TOP_K = int(
+    os.getenv(
+        "RETRIEVAL_TOP_K",
+        "5",
+    )
+)
+
+RETRIEVAL_SCORE_THRESHOLD = float(
+    os.getenv(
+        "RETRIEVAL_SCORE_THRESHOLD",
+        "0.35",
+    )
+)
