@@ -50,6 +50,8 @@ INSTALLED_APPS = [
 
     # Third-party apps
     "rest_framework",
+    "drf_spectacular",
+    "drf_spectacular_sidecar",
 
     # Local apps
     "documents.apps.DocumentsConfig",
@@ -177,6 +179,34 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": (
         "config.api.exceptions.api_exception_handler"
     ),
+    "DEFAULT_SCHEMA_CLASS": (
+        "drf_spectacular.openapi.AutoSchema"
+    ),
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "RoshanAI API",
+    "DESCRIPTION": (
+        "API for document ingestion and "
+        "retrieval-augmented question answering."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SERVE_PERMISSIONS": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SWAGGER_UI_DIST": "SIDECAR",
+    "SWAGGER_UI_FAVICON_HREF": "SIDECAR",
+    "REDOC_DIST": "SIDECAR",
+    "ENUM_NAME_OVERRIDES": {
+        "DocumentStatusEnum": (
+            "documents.models.Document.Status"
+        ),
+        "QuestionAnswerStatusEnum": (
+            "qa.models.QuestionAnswer.Status"
+        ),
+    },
 }
 
 DOCUMENT_CHUNK_SIZE_TOKENS = int(
