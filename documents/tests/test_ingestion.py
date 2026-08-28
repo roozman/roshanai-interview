@@ -45,6 +45,22 @@ class DocumentIngestionTests(
         )
         self.assertEqual(processed_document.error_message, "")
 
+        chunks = list(processed_document.chunks.all())
+
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(
+            chunks[0].content,
+            "First paragraph\nColumn A | Column B",
+        )
+        self.assertEqual(chunks[0].chunk_index, 0)
+        self.assertEqual(chunks[0].start_offset, 0)
+        self.assertEqual(
+            chunks[0].end_offset,
+            len(chunks[0].content),
+        )
+        self.assertGreater(chunks[0].token_count, 0)
+        self.assertIsNone(chunks[0].embedding)
+
     def test_marks_empty_docx_as_failed(self):
         document = Document.objects.create(
             title="Empty document",
@@ -63,3 +79,4 @@ class DocumentIngestionTests(
             processed_document.error_message,
         )
         self.assertEqual(len(processed_document.checksum), 64)
+        self.assertFalse(processed_document.chunks.exists())

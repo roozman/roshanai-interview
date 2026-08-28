@@ -1,6 +1,6 @@
 from django.contrib import admin, messages
 
-from documents.models import Document
+from documents.models import Document, DocumentChunk
 from documents.services.ingestion import process_document
 
 @admin.register(Document)
@@ -74,3 +74,70 @@ class DocumentAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+@admin.register(DocumentChunk)
+class DocumentChunkAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "document",
+        "chunk_index",
+        "token_count",
+        "start_offset",
+        "end_offset",
+        "has_embedding",
+        "content_preview",
+        "created_at",
+    )
+    list_select_related = ("document",)
+    search_fields = (
+        "document__title",
+        "content",
+    )
+    readonly_fields = (
+        "document",
+        "content",
+        "chunk_index",
+        "start_offset",
+        "end_offset",
+        "token_count",
+        "embedding",
+        "created_at",
+    )
+    ordering = (
+        "document_id",
+        "chunk_index",
+    )
+    list_per_page = 50
+
+    @admin.display(
+        boolean=True,
+        description="Embedded",
+    )
+    def has_embedding(self, obj):
+        return obj.embedding is not None
+
+    @admin.display(description="Content")
+    def content_preview(self, obj):
+        maximum_length = 100
+
+        if len(obj.content) <= maximum_length:
+            return obj.content
+
+        return f"{obj.content[:maximum_length]}…"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(
+        self,
+        request,
+        obj=None,
+    ):
+        return False
+
+    def has_delete_permission(
+        self,
+        request,
+        obj=None,
+    ):
+        return False

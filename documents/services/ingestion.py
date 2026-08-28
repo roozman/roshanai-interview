@@ -5,13 +5,20 @@ from zipfile import BadZipFile
 
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.db import transaction
 from docx import Document as DocxDocument
 from docx.opc.exceptions import PackageNotFoundError
 from docx.table import Table
 from docx.text.paragraph import Paragraph
 
-from documents.models import Document
+from documents.models import Document, DocumentChunk
 from documents.validators import validate_docx_file
+
+from documents.services.chunking import (
+    ChunkingError,
+    replace_document_chunks,
+    split_text_into_chunks,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -70,13 +77,18 @@ def extract_docx_text(file_stream: BinaryIO) -> str:
 def process_document(document_id: int) -> Document:
     document = Document.objects.get(pk=document_id)
 
-    Document.objects.filter(pk=document_id).update(
-        status=Document.Status.PROCESSING,
-        full_text="",
-        checksum="",
-        error_message="",
-        updated_at=timezone.now(),
-    )
+    with transaction.atomic():
+        DocumentChunk.objects.filter(
+            document_id=document_id
+        ).delete()
+
+        Document.objects.filter(pk=document_id).update(
+            status=Document.Status.PROCESSING,
+            full_text="",
+            checksum="",
+            error_message="",
+            updated_at=timezone.now(),
+        )
 
     checksum = ""
 
@@ -90,10 +102,36 @@ def process_document(document_id: int) -> Document:
         with document.file.open("rb") as file_stream:
             full_text = extract_docx_text(file_stream)
 
+        chunks = split_text_into_chunks(full_text)
+
+        with transaction.atomic():
+            replace_document_chunks(
+                document_id=document_id,
+                chunks=chunks,
+            )
+
+            Document.objects.filter(
+                pk=document_id
+            ).update(
+                status=Document.Status.PROCESSING,
+                full_text=full_text,
+                checksum=checksum,
+                error_message="",
+                updated_at=timezone.now(),
+            )
+
     except ValidationError as exc:
         error_message = " ".join(exc.messages)
 
     except EmptyDocumentError as exc:
+        error_message = str(exc)
+
+    except ChunkingError as exc:
+        logger.warning(
+            "Document %s could not be chunked.",
+            document_id,
+            exc_info=True,
+        )
         error_message = str(exc)
 
     except (BadZipFile, PackageNotFoundError, OSError, ValueError):
@@ -102,31 +140,34 @@ def process_document(document_id: int) -> Document:
             document_id,
             exc_info=True,
         )
-        error_message = "The DOCX document could not be processed."
+        error_message = (
+            "The DOCX document could not be processed."
+        )
 
     except Exception:
         logger.exception(
             "Unexpected error while processing document %s.",
             document_id,
         )
-        error_message = "An unexpected error occurred while processing the document."
+        error_message = (
+            "An unexpected error occurred while "
+            "processing the document."
+        )
 
     else:
-        Document.objects.filter(pk=document_id).update(
-            status=Document.Status.PROCESSING,
-            full_text=full_text,
-            checksum=checksum,
-            error_message="",
-            updated_at=timezone.now(),
-        )
         return Document.objects.get(pk=document_id)
 
-    Document.objects.filter(pk=document_id).update(
-        status=Document.Status.FAILED,
-        full_text="",
-        checksum=checksum,
-        error_message=error_message,
-        updated_at=timezone.now(),
-    )
+    with transaction.atomic():
+        DocumentChunk.objects.filter(
+            document_id=document_id
+        ).delete()
+
+        Document.objects.filter(pk=document_id).update(
+            status=Document.Status.FAILED,
+            full_text="",
+            checksum=checksum,
+            error_message=error_message,
+            updated_at=timezone.now(),
+        )
 
     return Document.objects.get(pk=document_id)

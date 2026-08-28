@@ -176,3 +176,11 @@ REST_FRAMEWORK = {
         "config.api.exceptions.api_exception_handler"
     ),
 }
+
+DOCUMENT_CHUNK_SIZE_TOKENS = int(
+    os.getenv("DOCUMENT_CHUNK_SIZE_TOKENS", "800")
+)
+
+DOCUMENT_CHUNK_OVERLAP_TOKENS = int(
+    os.getenv("DOCUMENT_CHUNK_OVERLAP_TOKENS", "120")
+)
