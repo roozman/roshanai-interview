@@ -4,7 +4,8 @@ FROM python:3.13-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    HF_HOME=/var/cache/roshanai/huggingface
 
 WORKDIR /app
 
@@ -15,7 +16,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 RUN addgroup --system app \
     && adduser --system --ingroup app app \
-    && chown app:app /app
+    && mkdir -p /var/cache/roshanai/huggingface \
+    && chown -R app:app /app /var/cache/roshanai
 
 COPY --chown=app:app . .
 

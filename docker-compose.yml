@@ -26,6 +26,7 @@ services:
       - .env
     volumes:
       - .:/app
+      - huggingface_cache:/var/cache/roshanai/huggingface
     ports:
       - "8000:8000"
     healthcheck:
@@ -44,3 +45,4 @@ services:
 
 volumes:
   postgres_data:
+  huggingface_cache:
