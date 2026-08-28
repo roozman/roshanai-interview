@@ -9,6 +9,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("health/", health_check, name="health-check"),
     path("api/v1/", include("documents.urls")),
+    path("api/v1/", include("qa.urls")),
 ]
 
 if settings.DEBUG:
