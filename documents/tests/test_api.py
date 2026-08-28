@@ -7,16 +7,18 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from documents.models import Document, DocumentChunk
+from documents.services.embeddings import EmbeddingServiceError
 from documents.tests.helpers import (
     DOCX_CONTENT_TYPE,
+    FakeTokenizerMixin,
     TemporaryMediaRootMixin,
     build_test_embeddings,
     make_uploaded_docx,
 )
-from documents.services.embeddings import EmbeddingServiceError
 
 
 class DocumentAPITests(
+    FakeTokenizerMixin,
     TemporaryMediaRootMixin,
     APITestCase,
 ):

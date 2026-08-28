@@ -1,30 +1,25 @@
 from hashlib import sha256
+from unittest.mock import patch
 
 from django.test import TestCase
 
-from documents.models import Document
-from documents.services.ingestion import process_document
-from documents.tests.helpers import (
-    TemporaryMediaRootMixin,
-    build_docx_bytes,
-    make_uploaded_docx,
-)
-
-from unittest.mock import patch
-
 from documents.constants import EMBEDDING_DIMENSION
+from documents.models import Document
 from documents.services.embeddings import (
     EmbeddingServiceError,
 )
-
+from documents.services.ingestion import process_document
 from documents.tests.helpers import (
+    FakeTokenizerMixin,
     TemporaryMediaRootMixin,
     build_docx_bytes,
     build_test_embeddings,
     make_uploaded_docx,
 )
 
+
 class DocumentIngestionTests(
+    FakeTokenizerMixin,
     TemporaryMediaRootMixin,
     TestCase,
 ):

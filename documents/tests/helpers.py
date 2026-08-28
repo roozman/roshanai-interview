@@ -1,9 +1,11 @@
 from io import BytesIO
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from docx import Document as WordDocument
+
 from documents.constants import EMBEDDING_DIMENSION
 
 
@@ -11,6 +13,34 @@ DOCX_CONTENT_TYPE = (
     "application/vnd.openxmlformats-officedocument."
     "wordprocessingml.document"
 )
+
+
+class FakeEncoding:
+    def __init__(self, ids):
+        self.ids = ids
+
+
+class FakeTokenizer:
+    def encode(
+        self,
+        text,
+        add_special_tokens=False,
+    ):
+        del add_special_tokens
+
+        return FakeEncoding(text.split())
+
+
+class FakeTokenizerMixin:
+    def setUp(self):
+        super().setUp()
+
+        tokenizer_patcher = patch(
+            "documents.services.chunking.get_tokenizer",
+            return_value=FakeTokenizer(),
+        )
+        tokenizer_patcher.start()
+        self.addCleanup(tokenizer_patcher.stop)
 
 
 def build_docx_bytes(
@@ -71,6 +101,7 @@ class TemporaryMediaRootMixin:
         finally:
             cls.settings_override.disable()
             cls.temporary_media.cleanup()
+
 
 def build_test_embeddings(
     texts,

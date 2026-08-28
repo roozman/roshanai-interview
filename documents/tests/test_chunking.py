@@ -4,22 +4,7 @@ from documents.services.chunking import (
     ChunkingError,
     split_text_into_chunks,
 )
-
-
-class FakeEncoding:
-    def __init__(self, ids):
-        self.ids = ids
-
-
-class FakeTokenizer:
-    def encode(
-        self,
-        text,
-        add_special_tokens=False,
-    ):
-        del add_special_tokens
-
-        return FakeEncoding(text.split())
+from documents.tests.helpers import FakeTokenizer
 
 
 class ChunkingTests(SimpleTestCase):
@@ -96,4 +81,3 @@ class ChunkingTests(SimpleTestCase):
                 chunk_size=10,
                 chunk_overlap=10,
             )
-            
