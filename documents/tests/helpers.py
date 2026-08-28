@@ -4,6 +4,7 @@ from tempfile import TemporaryDirectory
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from docx import Document as WordDocument
+from documents.constants import EMBEDDING_DIMENSION
 
 
 DOCX_CONTENT_TYPE = (
@@ -70,3 +71,11 @@ class TemporaryMediaRootMixin:
         finally:
             cls.settings_override.disable()
             cls.temporary_media.cleanup()
+
+def build_test_embeddings(
+    texts,
+) -> list[list[float]]:
+    return [
+        [0.1] * EMBEDDING_DIMENSION
+        for _ in texts
+    ]

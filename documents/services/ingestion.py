@@ -20,6 +20,10 @@ from documents.services.chunking import (
     split_text_into_chunks,
 )
 
+from documents.services.embeddings import (
+    EmbeddingServiceError,
+    embed_document_chunks,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -119,12 +123,33 @@ def process_document(document_id: int) -> Document:
                 error_message="",
                 updated_at=timezone.now(),
             )
+        embed_document_chunks(document_id)
+
+        Document.objects.filter(
+            pk=document_id
+        ).update(
+            status=Document.Status.INDEXED,
+            error_message="",
+            updated_at=timezone.now(),
+        )
 
     except ValidationError as exc:
         error_message = " ".join(exc.messages)
 
     except EmptyDocumentError as exc:
         error_message = str(exc)
+
+    except EmbeddingServiceError:
+        logger.warning(
+            "Embeddings could not be generated "
+            "for document %s.",
+            document_id,
+            exc_info=True,
+        )
+        error_message = (
+            "The document embeddings could not "
+            "be generated."
+        )
 
     except ChunkingError as exc:
         logger.warning(

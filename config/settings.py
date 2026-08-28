@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 from pathlib import Path
+from documents.constants import DEFAULT_EMBEDDING_MODEL
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -183,4 +184,33 @@ DOCUMENT_CHUNK_SIZE_TOKENS = int(
 
 DOCUMENT_CHUNK_OVERLAP_TOKENS = int(
     os.getenv("DOCUMENT_CHUNK_OVERLAP_TOKENS", "120")
+)
+
+OPENROUTER_API_KEY = os.getenv(
+    "OPENROUTER_API_KEY",
+    "",
+)
+
+OPENROUTER_BASE_URL = os.getenv(
+    "OPENROUTER_BASE_URL",
+    "https://openrouter.ai/api/v1",
+).rstrip("/")
+
+OPENROUTER_EMBEDDING_MODEL = os.getenv(
+    "OPENROUTER_EMBEDDING_MODEL",
+    DEFAULT_EMBEDDING_MODEL,
+)
+
+OPENROUTER_EMBEDDING_BATCH_SIZE = int(
+    os.getenv(
+        "OPENROUTER_EMBEDDING_BATCH_SIZE",
+        "16",
+    )
+)
+
+OPENROUTER_TIMEOUT_SECONDS = float(
+    os.getenv(
+        "OPENROUTER_TIMEOUT_SECONDS",
+        "60",
+    )
 )
