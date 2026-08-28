@@ -10,11 +10,38 @@ from documents.tests.helpers import (
     make_uploaded_docx,
 )
 
+from unittest.mock import patch
+
+from documents.constants import EMBEDDING_DIMENSION
+from documents.services.embeddings import (
+    EmbeddingServiceError,
+)
+
+from documents.tests.helpers import (
+    TemporaryMediaRootMixin,
+    build_docx_bytes,
+    build_test_embeddings,
+    make_uploaded_docx,
+)
 
 class DocumentIngestionTests(
     TemporaryMediaRootMixin,
     TestCase,
 ):
+    def setUp(self):
+        super().setUp()
+
+        self.embedding_patcher = patch(
+            "documents.services.embeddings."
+            "generate_document_embeddings",
+            side_effect=build_test_embeddings,
+        )
+        self.mock_generate_embeddings = (
+            self.embedding_patcher.start()
+        )
+        self.addCleanup(
+            self.embedding_patcher.stop
+        )
     def test_extracts_paragraphs_and_tables(self):
         content = build_docx_bytes(
             paragraphs=("First   paragraph",),
@@ -33,7 +60,7 @@ class DocumentIngestionTests(
 
         self.assertEqual(
             processed_document.status,
-            Document.Status.PROCESSING,
+            Document.Status.INDEXED,
         )
         self.assertEqual(
             processed_document.full_text,
@@ -59,7 +86,12 @@ class DocumentIngestionTests(
             len(chunks[0].content),
         )
         self.assertGreater(chunks[0].token_count, 0)
-        self.assertIsNone(chunks[0].embedding)
+        self.assertIsNotNone(chunks[0].embedding)
+        self.assertEqual(
+            len(chunks[0].embedding),
+            EMBEDDING_DIMENSION,
+        )
+        self.mock_generate_embeddings.assert_called_once()
 
     def test_marks_empty_docx_as_failed(self):
         document = Document.objects.create(
@@ -80,3 +112,39 @@ class DocumentIngestionTests(
         )
         self.assertEqual(len(processed_document.checksum), 64)
         self.assertFalse(processed_document.chunks.exists())
+
+    def test_marks_document_failed_when_embedding_fails(
+        self,
+    ):
+        self.mock_generate_embeddings.side_effect = (
+            EmbeddingServiceError(
+                "OpenRouter is unavailable."
+            )
+        )
+
+        document = Document.objects.create(
+            title="Embedding failure",
+            file=make_uploaded_docx(
+                paragraphs=("Valid document content",),
+            ),
+        )
+
+        processed_document = process_document(
+            document.pk
+        )
+
+        self.assertEqual(
+            processed_document.status,
+            Document.Status.FAILED,
+        )
+        self.assertEqual(
+            processed_document.full_text,
+            "",
+        )
+        self.assertIn(
+            "embeddings could not be generated",
+            processed_document.error_message,
+        )
+        self.assertFalse(
+            processed_document.chunks.exists()
+        )

@@ -11,18 +11,34 @@ from documents.tests.helpers import (
     make_uploaded_docx,
 )
 
+from unittest.mock import patch
+from documents.tests.helpers import (
+    DOCX_CONTENT_TYPE,
+    TemporaryMediaRootMixin,
+    build_test_embeddings,
+    make_uploaded_docx,
+)
+
 
 class DocumentAPITests(
     TemporaryMediaRootMixin,
     APITestCase,
 ):
     def setUp(self):
+        super().setUp()
         self.user = get_user_model().objects.create_user(
             username="api-user",
             password="test-password",
         )
         self.client.force_authenticate(user=self.user)
         self.list_url = reverse("document-list")
+        self.embedding_patcher = patch(
+            "documents.services.embeddings."
+            "generate_document_embeddings",
+            side_effect=build_test_embeddings,
+        )
+        self.embedding_patcher.start()
+        self.addCleanup(self.embedding_patcher.stop)
 
     def upload_document(
         self,
@@ -61,7 +77,7 @@ class DocumentAPITests(
         self.assertEqual(len(document.checksum), 64)
         self.assertEqual(
             document.status,
-            Document.Status.PROCESSING,
+            Document.Status.INDEXED,
         )
 
     def test_rejects_non_docx_file(self):
