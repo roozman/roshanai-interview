@@ -205,6 +205,10 @@ After signing in to `/admin/`:
 
 The first indexing operation may download the model tokenizer from Hugging Face. It is persisted in the `huggingface_cache` Docker volume.
 
+## Screenshots
+
+Project screenshots are available in [`docs/screenshots/`](docs/screenshots/).
+
 ## Sample data
 
 The [`samples/`](samples/) directory contains three Farsi documents:
